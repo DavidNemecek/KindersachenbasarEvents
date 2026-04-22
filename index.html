@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Kindersachenbasar – Termin in den Kalender</title>
+    <style>
+      :root {
+        --bg: #f6f7f9;
+        --card: #fff;
+        --text: #111827;
+        --muted: #6b7280;
+        --primary: #2563eb;
+        --primaryHover: #1d4ed8;
+        --border: #e5e7eb;
+      }
+      body {
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        margin: 0;
+        padding: 24px;
+        display: grid;
+        place-items: center;
+        min-height: 100vh;
+      }
+      .card {
+        width: min(720px, 100%);
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+        padding: 20px 18px;
+      }
+      h1 {
+        margin: 0 0 10px;
+        font-size: 22px;
+      }
+      p {
+        margin: 10px 0;
+        line-height: 1.45;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        margin: 14px 0 6px;
+      }
+      .btn {
+        appearance: none;
+        border: 0;
+        border-radius: 10px;
+        background: var(--primary);
+        color: #fff;
+        padding: 10px 14px;
+        font-size: 15px;
+        cursor: pointer;
+      }
+      .btn:hover { background: var(--primaryHover); }
+      .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+      .link {
+        color: var(--primary);
+        text-decoration: none;
+      }
+      .link:hover { text-decoration: underline; }
+      .box {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px;
+        background: #fafafa;
+        margin-top: 12px;
+      }
+      ul { margin: 8px 0 0 18px; }
+      li { margin: 6px 0; }
+      code {
+        background: #f3f4f6;
+        padding: 2px 6px;
+        border-radius: 6px;
+      }
+      .status {
+        font-size: 14px;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <h1>Kindersachenbasar – Termin in den Kalender</h1>
+      <p class="muted">
+        Diese Seite lädt automatisch eine Kalender-Datei (<code>.ics</code>) für den nächsten Termin herunter.
+        Danach kannst du den Termin mit wenigen Klicks in deinen Kalender übernehmen.
+      </p>
+
+      <div class="row">
+        <button class="btn" id="downloadButton" type="button">Termin herunterladen</button>
+        <span class="status" id="statusText">Suche nach der neuesten Datei…</span>
+      </div>
+
+      <p id="directLink" class="muted" style="display:none;"></p>
+
+      <div class="box">
+        <p><strong>So geht’s danach (ohne IT-Vorkenntnisse):</strong></p>
+        <ul>
+          <li><strong>Handy (iPhone/Android):</strong> Öffne die heruntergeladene <code>.ics</code>-Datei (meist in „Downloads“). Dann auf „Zum Kalender hinzufügen“ / „Importieren“ tippen.</li>
+          <li><strong>Windows (Outlook):</strong> Die <code>.ics</code>-Datei doppelklicken → Outlook fragt, ob der Termin übernommen werden soll.</li>
+          <li><strong>Mac (Kalender):</strong> Die <code>.ics</code>-Datei öffnen → „Hinzufügen“ bestätigen.</li>
+          <li><strong>Google Kalender:</strong> In Google Kalender → Einstellungen → „Importieren“ → Datei auswählen und importieren.</li>
+        </ul>
+        <p class="muted" style="margin-top:10px;">
+          Wenn dein Gerät fragt, in welchen Kalender der Termin soll: einfach den gewünschten Kalender auswählen (z.B. „Privat“).
+        </p>
+      </div>
+
+      <p class="muted" style="margin-top:14px;">
+        Falls der Download blockiert wird, kannst du die Datei auch direkt öffnen:
+        <span id="fallbackLinks"></span>
+      </p>
+    </main>
+
+    <script>
+      const ICAL_DIR = "IcalFiles/";
+
+      async function fileExists(url) {
+        try {
+          const response = await fetch(url, { method: "HEAD", cache: "no-store" });
+          return response.ok;
+        } catch {
+          return false;
+        }
+      }
+
+      async function findLatestFileName() {
+        const currentYear = new Date().getFullYear();
+        for (let year = currentYear + 2; year >= currentYear - 3; year--) {
+          const second = `2KBasar${year}.ics`;
+          if (await fileExists(ICAL_DIR + second)) return second;
+          const first = `1KBasar${year}.ics`;
+          if (await fileExists(ICAL_DIR + first)) return first;
+        }
+        return null;
+      }
+
+      function renderFallbackLinks() {
+        const currentYear = new Date().getFullYear();
+        const years = [];
+        for (let y = currentYear + 1; y >= currentYear - 1; y--) years.push(y);
+        const parts = [];
+        for (const y of years) {
+          parts.push(`<a class="link" href="${ICAL_DIR}2KBasar${y}.ics">2KBasar${y}.ics</a>`);
+          parts.push(`<a class="link" href="${ICAL_DIR}1KBasar${y}.ics">1KBasar${y}.ics</a>`);
+        }
+        document.getElementById("fallbackLinks").innerHTML = parts.join(" · ");
+      }
+
+      async function triggerDownload() {
+        const status = document.getElementById("statusText");
+        const button = document.getElementById("downloadButton");
+        button.disabled = true;
+        status.textContent = "Suche nach der neuesten Datei…";
+
+        const fileName = await findLatestFileName();
+        if (!fileName) {
+          status.textContent = "Es konnte keine Kalender-Datei gefunden werden.";
+          button.disabled = false;
+          return;
+        }
+
+        const url = ICAL_DIR + fileName;
+        status.textContent = `Gefunden: ${fileName} – Download startet…`;
+
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        const direct = document.getElementById("directLink");
+        direct.style.display = "block";
+        direct.innerHTML = `Direktlink: <a class="link" href="${url}">${fileName}</a>`;
+
+        status.textContent = "Download gestartet. Öffne danach die Datei und bestätige „Zum Kalender hinzufügen“.";
+        button.disabled = false;
+      }
+
+      renderFallbackLinks();
+      window.addEventListener("load", () => triggerDownload());
+      document.getElementById("downloadButton").addEventListener("click", () => triggerDownload());
+    </script>
+  </body>
+</html>
+
