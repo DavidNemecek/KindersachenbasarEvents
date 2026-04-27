@@ -116,16 +116,13 @@
       <h1>Kindersachenbasar - Termin in den Kalender</h1>
       <p class="muted">
         Diese Seite zeigt die Termine aus der neuesten Kalender-Datei (<code>.ics</code>) und bietet den Download.
+        <br />
         Zum Herunterladen auf „Erneut herunterladen“ klicken.
       </p>
 
       <div class="row">
         <button class="btn" id="downloadButton" type="button">Erneut herunterladen</button>
       </div>
-
-      <p class="status" id="statusText"></p>
-      <p class="status" id="directLink" style="display:none"></p>
-      <p class="status muted">Alternativen: <span id="fallbackLinks"></span></p>
 
       <div class="box" id="eventsBox" aria-live="polite">
         <p><strong>Termine:</strong></p>
@@ -168,6 +165,9 @@
       }
 
       function renderFallbackLinks() {
+        const container = document.getElementById("fallbackLinks");
+        if (!container) return;
+
         const currentYear = new Date().getFullYear();
         const years = [];
         for (let y = currentYear + 1; y >= currentYear - 1; y--) years.push(y);
@@ -176,7 +176,7 @@
           parts.push(`<a class="link" href="${ICAL_DIR}2KBasar${y}.ics">2KBasar${y}.ics</a>`);
           parts.push(`<a class="link" href="${ICAL_DIR}1KBasar${y}.ics">1KBasar${y}.ics</a>`);
         }
-        document.getElementById("fallbackLinks").innerHTML = parts.join(" · ");
+        container.innerHTML = parts.join(" · ");
       }
 
       async function initPage() {
