@@ -249,6 +249,7 @@
         const lines = unfolded.split("\n");
         const events = [];
         let current = null;
+        let inAlarm = false;
 
         for (const rawLine of lines) {
           const line = rawLine.trimEnd();
@@ -261,9 +262,20 @@
           if (line === "END:VEVENT") {
             if (current) events.push(current);
             current = null;
+            inAlarm = false;
             continue;
           }
           if (!current) continue;
+
+          if (line === "BEGIN:VALARM") {
+            inAlarm = true;
+            continue;
+          }
+          if (line === "END:VALARM") {
+            inAlarm = false;
+            continue;
+          }
+          if (inAlarm) continue;
 
           const idx = line.indexOf(":");
           if (idx < 0) continue;
