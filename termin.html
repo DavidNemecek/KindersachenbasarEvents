@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Kindersachenbasar - Termin in den Kalender</title>
+    <style>
+      :root {
+        --bg: #f6f7f9;
+        --card: #fff;
+        --text: #111827;
+        --muted: #6b7280;
+        --primary: #2563eb;
+        --primaryHover: #1d4ed8;
+        --border: #e5e7eb;
+      }
+      body {
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        margin: 0;
+        padding: 24px;
+        display: grid;
+        place-items: center;
+        min-height: 100vh;
+      }
+      .card {
+        width: min(720px, 100%);
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+        padding: 20px 18px;
+      }
+      h1 {
+        margin: 0 0 10px;
+        font-size: 22px;
+      }
+      p {
+        margin: 10px 0;
+        line-height: 1.45;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        margin: 14px 0 6px;
+      }
+      .btn {
+        appearance: none;
+        border: 0;
+        border-radius: 10px;
+        background: var(--primary);
+        color: #fff;
+        padding: 10px 14px;
+        font-size: 15px;
+        cursor: pointer;
+      }
+      .btn:hover { background: var(--primaryHover); }
+      .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+      .link {
+        color: var(--primary);
+        text-decoration: none;
+      }
+      .link:hover { text-decoration: underline; }
+      .box {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px;
+        background: #fafafa;
+        margin-top: 12px;
+      }
+      .events {
+        list-style: none;
+        margin: 10px 0 0;
+        padding: 0;
+      }
+      .events li {
+        margin: 0;
+        padding: 10px 0;
+        border-top: 1px solid var(--border);
+      }
+      .events li:first-child {
+        border-top: 0;
+        padding-top: 0;
+      }
+      .event-meta {
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .event-desc {
+        margin-top: 6px;
+        color: var(--muted);
+        white-space: pre-line;
+      }
+      ul { margin: 8px 0 0 18px; }
+      li { margin: 6px 0; }
+      code {
+        background: #f3f4f6;
+        padding: 2px 6px;
+        border-radius: 6px;
+      }
+      .status {
+        font-size: 14px;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <h1>Kindersachenbasar - Termin in den Kalender</h1>
+      <p class="muted">
+        Diese Seite zeigt die Termine aus der neuesten Kalender-Datei (<code>.ics</code>) und bietet den Download.
+        Zum Herunterladen auf „Erneut herunterladen“ klicken.
+      </p>
+
+      <div class="row">
+        <button class="btn" id="downloadButton" type="button">Erneut herunterladen</button>
+      </div>
+
+      <p class="status" id="statusText"></p>
+      <p class="status" id="directLink" style="display:none"></p>
+      <p class="status muted">Alternativen: <span id="fallbackLinks"></span></p>
+
+      <div class="box" id="eventsBox" aria-live="polite">
+        <p><strong>Termine:</strong></p>
+        <ul class="events" id="eventsList">
+          <li class="muted">Lade Termine…</li>
+        </ul>
+      </div>
+
+    </main>
+
+    <script>
+      const CANONICAL_ORIGIN = "https://nextkbasar.neyda.at";
+      if (window.location.protocol === "http:") {
+        window.location.replace(window.location.href.replace(/^http:/, "https:"));
+      } else if (window.location.origin !== CANONICAL_ORIGIN && window.location.hostname.endsWith("github.io")) {
+        const path = window.location.pathname.replace(/^\/KindersachenbasarEvents(\/|$)/, "/");
+        window.location.replace(`${CANONICAL_ORIGIN}${path}${window.location.search}${window.location.hash}`);
+      }
+
+      const ICAL_DIR = "IcalFiles/";
+
+      async function fileExists(url) {
+        try {
+          const response = await fetch(url, { method: "HEAD", cache: "no-store" });
+          return response.ok;
+        } catch {
+          return false;
+        }
+      }
+
+      async function findLatestFileName() {
+        const currentYear = new Date().getFullYear();
+        for (let year = currentYear + 2; year >= currentYear - 3; year--) {
+          const second = `2KBasar${year}.ics`;
+          if (await fileExists(ICAL_DIR + second)) return second;
+          const first = `1KBasar${year}.ics`;
+          if (await fileExists(ICAL_DIR + first)) return first;
+        }
+        return null;
+      }
+
+      function renderFallbackLinks() {
+        const currentYear = new Date().getFullYear();
+        const years = [];
+        for (let y = currentYear + 1; y >= currentYear - 1; y--) years.push(y);
+        const parts = [];
+        for (const y of years) {
+          parts.push(`<a class="link" href="${ICAL_DIR}2KBasar${y}.ics">2KBasar${y}.ics</a>`);
+          parts.push(`<a class="link" href="${ICAL_DIR}1KBasar${y}.ics">1KBasar${y}.ics</a>`);
+        }
+        document.getElementById("fallbackLinks").innerHTML = parts.join(" · ");
+      }
+
+      async function initPage() {
+        const status = document.getElementById("statusText");
+        if (status) status.textContent = "Suche nach der neuesten Datei…";
+
+        const fileName = await findLatestFileName();
+        if (!fileName) {
+          if (status) status.textContent = "Es konnte keine Kalender-Datei gefunden werden.";
+          return;
+        }
+
+        const url = ICAL_DIR + fileName;
+        loadAndRenderEvents(url);
+
+        const direct = document.getElementById("directLink");
+        if (direct) {
+          direct.style.display = "block";
+          direct.innerHTML = `Direktlink: <a class="link" href="${url}">${fileName}</a>`;
+        }
+
+        if (status) status.textContent = `Aktuelle Datei: ${fileName}`;
+      }
+
+      function escapeHtml(text) {
+        return String(text)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      function decodeIcsText(value) {
+        return String(value)
+          .replace(/\\\\/g, "\\")
+          .replace(/\\n/gi, "\n")
+          .replace(/\\,/g, ",")
+          .replace(/\\;/g, ";");
+      }
+
+      function unfoldIcsText(text) {
+        return String(text).replace(/\r\n/g, "\n").replace(/\n[ \t]/g, "");
+      }
+
+      function parseIcsDateTime(value, isDateOnly) {
+        if (!value) return null;
+        if (isDateOnly) {
+          const year = Number(value.slice(0, 4));
+          const month = Number(value.slice(4, 6));
+          const day = Number(value.slice(6, 8));
+          return new Date(year, month - 1, day);
+        }
+
+        const zulu = value.endsWith("Z");
+        const clean = zulu ? value.slice(0, -1) : value;
+        const year = Number(clean.slice(0, 4));
+        const month = Number(clean.slice(4, 6));
+        const day = Number(clean.slice(6, 8));
+        const hour = Number(clean.slice(9, 11));
+        const minute = Number(clean.slice(11, 13));
+        const second = Number(clean.slice(13, 15) || "0");
+
+        if (zulu) return new Date(Date.UTC(year, month - 1, day, hour, minute, second));
+        return new Date(year, month - 1, day, hour, minute, second);
+      }
+
+      function parseIcsEvents(icsText) {
+        const unfolded = unfoldIcsText(icsText);
+        const lines = unfolded.split("\n");
+        const events = [];
+        let current = null;
+
+        for (const rawLine of lines) {
+          const line = rawLine.trimEnd();
+          if (!line) continue;
+
+          if (line === "BEGIN:VEVENT") {
+            current = {};
+            continue;
+          }
+          if (line === "END:VEVENT") {
+            if (current) events.push(current);
+            current = null;
+            continue;
+          }
+          if (!current) continue;
+
+          const idx = line.indexOf(":");
+          if (idx < 0) continue;
+          const left = line.slice(0, idx);
+          const value = line.slice(idx + 1);
+
+          const [name, ...params] = left.split(";");
+          const paramMap = new Map();
+          for (const p of params) {
+            const eq = p.indexOf("=");
+            if (eq > 0) paramMap.set(p.slice(0, eq).toUpperCase(), p.slice(eq + 1));
+          }
+
+          switch (name.toUpperCase()) {
+            case "DTSTART": {
+              const dateOnly = (paramMap.get("VALUE") || "").toUpperCase() === "DATE";
+              current.dtStart = parseIcsDateTime(value, dateOnly);
+              current.allDay = dateOnly;
+              break;
+            }
+            case "DTEND": {
+              const dateOnly = (paramMap.get("VALUE") || "").toUpperCase() === "DATE";
+              current.dtEnd = parseIcsDateTime(value, dateOnly);
+              break;
+            }
+            case "SUMMARY":
+              current.summary = decodeIcsText(value);
+              break;
+            case "LOCATION":
+              current.location = decodeIcsText(value);
+              break;
+            case "DESCRIPTION":
+              current.description = decodeIcsText(value);
+              break;
+            default:
+              break;
+          }
+        }
+
+        events.sort((a, b) => (a.dtStart?.getTime?.() || 0) - (b.dtStart?.getTime?.() || 0));
+        return events;
+      }
+
+      function formatEventWhen(ev) {
+        if (!ev.dtStart) return "";
+
+        const dateOptions = { weekday: "short", year: "numeric", month: "2-digit", day: "2-digit" };
+        const timeOptions = { hour: "2-digit", minute: "2-digit" };
+
+        const datePart = ev.dtStart.toLocaleDateString("de-DE", dateOptions);
+        if (ev.allDay) return `${datePart} (ganztägig)`;
+
+        const startTime = ev.dtStart.toLocaleTimeString("de-DE", timeOptions);
+        const endTime = ev.dtEnd ? ev.dtEnd.toLocaleTimeString("de-DE", timeOptions) : null;
+        return endTime ? `${datePart} ${startTime}–${endTime}` : `${datePart} ${startTime}`;
+      }
+
+      async function loadAndRenderEvents(url) {
+        const list = document.getElementById("eventsList");
+        if (!list) return;
+        list.innerHTML = `<li class="muted">Lade Termine…</li>`;
+
+        try {
+          const res = await fetch(url, { cache: "no-store" });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const text = await res.text();
+          const events = parseIcsEvents(text);
+
+          if (!events.length) {
+            list.innerHTML = `<li class="muted">Keine Termine in der Datei gefunden.</li>`;
+            return;
+          }
+
+          list.innerHTML = events
+            .map((ev) => {
+              const when = escapeHtml(formatEventWhen(ev));
+              const summary = escapeHtml(ev.summary || "Termin");
+              const location = ev.location ? ` · ${escapeHtml(ev.location)}` : "";
+              const desc = ev.description ? `<div class="event-desc">${escapeHtml(ev.description)}</div>` : "";
+              return `
+                <li>
+                  <div><strong>${summary}</strong></div>
+                  <div class="event-meta">${when}${location}</div>
+                  ${desc}
+                </li>
+              `.trim();
+            })
+            .join("");
+        } catch {
+          list.innerHTML = `<li class="muted">Termine konnten nicht geladen werden.</li>`;
+        }
+      }
+
+      async function triggerDownload() {
+        const status = document.getElementById("statusText");
+        const button = document.getElementById("downloadButton");
+        button.disabled = true;
+        if (status) status.textContent = "Suche nach der neuesten Datei…";
+
+        const fileName = await findLatestFileName();
+        if (!fileName) {
+          if (status) status.textContent = "Es konnte keine Kalender-Datei gefunden werden.";
+          button.disabled = false;
+          return;
+        }
+
+        const url = ICAL_DIR + fileName;
+        if (status) status.textContent = `Gefunden: ${fileName} - Download startet…`;
+        loadAndRenderEvents(url);
+
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        const direct = document.getElementById("directLink");
+        if (direct) {
+          direct.style.display = "block";
+          direct.innerHTML = `Direktlink: <a class="link" href="${url}">${fileName}</a>`;
+        }
+
+        if (status) status.textContent = "Download gestartet. Öffne danach die Datei und bestätige „Zum Kalender hinzufügen“.";
+        button.disabled = false;
+      }
+
+      renderFallbackLinks();
+      window.addEventListener("load", () => initPage());
+      document.getElementById("downloadButton").addEventListener("click", () => triggerDownload());
+    </script>
+  </body>
+</html>
